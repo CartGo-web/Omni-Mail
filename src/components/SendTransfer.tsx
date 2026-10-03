@@ -26,6 +26,7 @@ import { ConfirmationModal } from './ConfirmationModal.tsx';
 
 interface SendTransferProps {
   user: User;
+  assignedUserId?: string;
   accessToken: string | null;
   contacts: Contact[];
   onOpenContacts: () => void;
@@ -38,6 +39,7 @@ interface SendTransferProps {
 
 export const SendTransfer: React.FC<SendTransferProps> = ({
   user,
+  assignedUserId,
   accessToken,
   contacts,
   onOpenContacts,
@@ -278,6 +280,7 @@ export const SendTransfer: React.FC<SendTransferProps> = ({
         const scheduledRecord: TransferRecord = {
           id: `transfer_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           userId: user.uid,
+          assignedUserId: assignedUserId || undefined,
           senderEmail: user.email || '',
           recipientEmail: cleanRecipient,
           subject: cleanSubject,
@@ -368,6 +371,7 @@ export const SendTransfer: React.FC<SendTransferProps> = ({
       const transferRecord: TransferRecord = {
         id: `transfer_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         userId: user.uid,
+        assignedUserId: assignedUserId || undefined,
         senderEmail: user.email || '',
         recipientEmail: cleanRecipient,
         subject: cleanSubject,
@@ -541,7 +545,14 @@ export const SendTransfer: React.FC<SendTransferProps> = ({
                 </span>
               )}
             </div>
-            <div className="font-bold text-slate-900 text-sm sm:text-base">{user.email}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-bold text-slate-900 text-sm sm:text-base">{user.email}</span>
+              {assignedUserId && (
+                <span className="inline-flex items-center text-[11px] font-mono font-bold bg-slate-200/80 text-slate-800 px-2 py-0.5 rounded-md border border-slate-300">
+                  ID: {assignedUserId}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

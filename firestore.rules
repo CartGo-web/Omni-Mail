@@ -27,6 +27,16 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // UserProfile entity validation
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.assignedUserId is string && data.assignedUserId.size() > 0 && data.assignedUserId.size() <= 50 &&
+             data.email is string && data.email.size() > 3 && data.email.size() <= 200 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
     // Contact entity validation
     function isValidContact(data) {
       return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
@@ -56,6 +66,7 @@ service cloud.firestore {
     // Transfer entity validation
     function isValidTransfer(data) {
       return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (!('assignedUserId' in data) || (data.assignedUserId is string && data.assignedUserId.size() <= 50)) &&
              (!('senderEmail' in data) || (data.senderEmail is string && data.senderEmail.size() <= 200)) &&
              data.recipientEmail is string && data.recipientEmail.size() > 3 && data.recipientEmail.size() <= 200 &&
              (!('subject' in data) || (data.subject is string && data.subject.size() <= 300)) &&
@@ -84,7 +95,15 @@ service cloud.firestore {
              data.updatedAt is string && data.updatedAt.size() <= 50;
     }
 
-    // 2. Contacts Collection
+    // 2. Users Collection (Profile & Assigned User ID)
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId);
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && incoming().userId == request.auth.uid && isValidUserProfile(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidUserProfile(incoming());
+      allow delete: if false; // User documents are preserved
+    }
+
+    // 3. Contacts Collection
     match /contacts/{contactId} {
       allow get: if isSignedIn() && existing().userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
@@ -93,7 +112,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(contactId) && existing().userId == request.auth.uid;
     }
 
-    // 3. Drafts Collection
+    // 4. Drafts Collection
     match /drafts/{draftId} {
       allow get: if isSignedIn() && existing().userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
@@ -102,7 +121,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(draftId) && existing().userId == request.auth.uid;
     }
 
-    // 4. Transfers Collection
+    // 5. Transfers Collection
     match /transfers/{transferId} {
       allow get: if isSignedIn() && existing().userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
@@ -111,7 +130,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(transferId) && existing().userId == request.auth.uid;
     }
 
-    // 5. ApiKeys Collection
+    // 6. ApiKeys Collection
     match /api_keys/{keyId} {
       allow get: if isSignedIn() && existing().userId == request.auth.uid;
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
@@ -120,7 +139,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(keyId) && existing().userId == request.auth.uid;
     }
 
-    // 6. Test connection collection
+    // 7. Test connection collection
     match /test/{docId} {
       allow read: if true;
     }

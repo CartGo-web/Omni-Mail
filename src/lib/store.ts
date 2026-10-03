@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  getDoc,
   getDocs,
   deleteDoc,
   updateDoc,
@@ -10,7 +11,92 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase.ts';
-import { Contact, Draft, TransferRecord, ApiKeyRecord } from './types.ts';
+import { UserProfile, Contact, Draft, TransferRecord, ApiKeyRecord } from './types.ts';
+import { User } from 'firebase/auth';
+
+// -------------------------------------------------------------
+// USER PROFILE & ASSIGNED USER ID
+// -------------------------------------------------------------
+export function generateAssignedUserId(uid: string): string {
+  // Generates a clean, identifiable user ID format: OMNI-USR-XXXX-####
+  const prefix = 'OMNI-USR';
+  const cleanUidPart = uid.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'USER';
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  return `${prefix}-${cleanUidPart}-${randomSuffix}`;
+}
+
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  const path = `users/${userId}`;
+  try {
+    const snap = await getDoc(doc(db, 'users', userId));
+    if (snap.exists()) {
+      return snap.data() as UserProfile;
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return null;
+  }
+}
+
+export async function ensureUserProfile(user: User): Promise<UserProfile> {
+  const path = `users/${user.uid}`;
+  try {
+    const existing = await getUserProfile(user.uid);
+    if (existing && existing.assignedUserId) {
+      return existing;
+    }
+
+    // Generate new assigned user ID
+    const assignedId = generateAssignedUserId(user.uid);
+    const profile: UserProfile = {
+      id: user.uid,
+      userId: user.uid,
+      assignedUserId: assignedId,
+      email: user.email || '',
+      displayName: user.displayName || user.email?.split('@')[0] || 'OmniMail User',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await setDoc(doc(db, 'users', user.uid), profile);
+    return profile;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+    // Fallback in-memory profile if Firestore write encounters non-blocking issue
+    return {
+      id: user.uid,
+      userId: user.uid,
+      assignedUserId: generateAssignedUserId(user.uid),
+      email: user.email || '',
+      displayName: user.displayName || user.email?.split('@')[0] || 'OmniMail User',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+}
+
+export function subscribeUserProfile(
+  userId: string,
+  onUpdate: (profile: UserProfile | null) => void,
+  onError?: (err: unknown) => void
+) {
+  const path = `users/${userId}`;
+  return onSnapshot(
+    doc(db, 'users', userId),
+    (snap) => {
+      if (snap.exists()) {
+        onUpdate(snap.data() as UserProfile);
+      } else {
+        onUpdate(null);
+      }
+    },
+    (error) => {
+      if (onError) onError(error);
+      handleFirestoreError(error, OperationType.GET, path);
+    }
+  );
+}
 
 // -------------------------------------------------------------
 // CONTACTS / ADDRESS BOOK
@@ -111,7 +197,7 @@ export async function removeDraft(draftId: string): Promise<void> {
 }
 
 // -------------------------------------------------------------
-// TRANSFERS & SCHEDULED QUEUE
+// TRANSFERS HISTORY & QUEUE
 // -------------------------------------------------------------
 export async function getTransfers(userId: string): Promise<TransferRecord[]> {
   const collectionPath = 'transfers';
@@ -131,8 +217,8 @@ export function subscribeTransfers(userId: string, onUpdate: (transfers: Transfe
   return onSnapshot(
     q,
     (snapshot) => {
-      const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TransferRecord));
-      onUpdate(items);
+      const transfers = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as TransferRecord));
+      onUpdate(transfers);
     },
     (error) => {
       if (onError) onError(error);
@@ -150,15 +236,17 @@ export async function saveTransfer(transfer: TransferRecord): Promise<void> {
   }
 }
 
-export async function updateTransferStatus(transferId: string, status: 'scheduled' | 'sent' | 'failed' | 'cancelled', sentAt?: string): Promise<void> {
+export async function updateTransferStatus(transferId: string, status: TransferRecord['status'], sentAt?: string): Promise<void> {
   const path = `transfers/${transferId}`;
   try {
-    const updatePayload: Record<string, unknown> = {
+    const updates: Partial<TransferRecord> = {
       status,
       updatedAt: new Date().toISOString(),
     };
-    if (sentAt) updatePayload.sentAt = sentAt;
-    await updateDoc(doc(db, 'transfers', transferId), updatePayload);
+    if (sentAt) {
+      updates.sentAt = sentAt;
+    }
+    await updateDoc(doc(db, 'transfers', transferId), updates);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
@@ -174,7 +262,7 @@ export async function removeTransfer(transferId: string): Promise<void> {
 }
 
 // -------------------------------------------------------------
-// API KEYS & INTEGRATIONS
+// API KEYS
 // -------------------------------------------------------------
 export async function getApiKeys(userId: string): Promise<ApiKeyRecord[]> {
   const collectionPath = 'api_keys';
@@ -188,7 +276,7 @@ export async function getApiKeys(userId: string): Promise<ApiKeyRecord[]> {
   }
 }
 
-export function subscribeApiKeys(userId: string, onUpdate: (keys: ApiKeyRecord[]) => void, onError?: (err: unknown) => void) {
+export function subscribeApiKeys(userId: string, onUpdate: (apiKeys: ApiKeyRecord[]) => void, onError?: (err: unknown) => void) {
   const collectionPath = 'api_keys';
   const q = query(collection(db, collectionPath), where('userId', '==', userId));
   return onSnapshot(

@@ -1,3 +1,13 @@
+export interface UserProfile {
+  id: string;
+  userId: string;
+  assignedUserId: string;
+  email: string;
+  displayName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Contact {
   id: string;
   userId: string;
@@ -36,6 +46,7 @@ export interface Draft {
 export interface TransferRecord {
   id: string;
   userId: string;
+  assignedUserId?: string;
   senderEmail: string;
   recipientEmail: string;
   subject: string;

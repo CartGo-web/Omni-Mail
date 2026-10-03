@@ -199,7 +199,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ onSuccess }) => {
           </h2>
           <p className="text-xs text-slate-500">
             {mode === 'signin' && 'Enter your email and password to manage automated transfers'}
-            {mode === 'signup' && 'Get started with automated email transfers and address book'}
+            {mode === 'signup' && 'A unique User ID will be automatically generated and assigned to your account'}
             {mode === 'forgot' && "We'll send a password recovery link to your email"}
           </p>
         </div>

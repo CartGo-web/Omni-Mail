@@ -1,5 +1,20 @@
 {
   "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with assigned unique user ID and metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "assignedUserId": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 200 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "assignedUserId", "email", "createdAt", "updatedAt"]
+    },
     "Contact": {
       "title": "Contact",
       "description": "Address book contact",
@@ -43,6 +58,7 @@
       "properties": {
         "id": { "type": "string" },
         "userId": { "type": "string" },
+        "assignedUserId": { "type": "string", "maxLength": 50 },
         "senderEmail": { "type": "string", "maxLength": 200 },
         "recipientEmail": { "type": "string", "maxLength": 200 },
         "subject": { "type": "string", "maxLength": 300 },
@@ -79,6 +95,10 @@
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile with assigned unique user ID"
+    },
     "/contacts/{contactId}": {
       "schema": { "$ref": "#/entities/Contact" },
       "description": "User saved contacts for quick recipient selection"

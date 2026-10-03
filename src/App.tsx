@@ -23,8 +23,10 @@ import {
   subscribeTransfers,
   subscribeApiKeys,
   updateTransferStatus,
+  ensureUserProfile,
+  subscribeUserProfile,
 } from './lib/store.ts';
-import { Contact, Draft, TransferRecord, ApiKeyRecord } from './lib/types.ts';
+import { UserProfile, Contact, Draft, TransferRecord, ApiKeyRecord } from './lib/types.ts';
 import { sendGmailMessage } from './lib/gmail.ts';
 import { Navbar, TabType } from './components/Navbar.tsx';
 import { AuthForm } from './components/AuthForm.tsx';
@@ -36,6 +38,7 @@ import { ApiIntegrations } from './components/ApiIntegrations.tsx';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
@@ -62,6 +65,7 @@ export default function App() {
       },
       () => {
         setUser(null);
+        setUserProfile(null);
         setAccessToken(null);
         setAuthLoading(false);
       }
@@ -69,15 +73,25 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. Real-time Firestore subscriptions when authenticated
+  // 2. Real-time Firestore subscriptions & Assigned User ID initialization
   useEffect(() => {
     if (!user) {
+      setUserProfile(null);
       setContacts([]);
       setDrafts([]);
       setTransfers([]);
       setApiKeys([]);
       return;
     }
+
+    // Automatically ensure & assign a unique User ID document for this user in Firestore
+    ensureUserProfile(user)
+      .then((profile) => setUserProfile(profile))
+      .catch((err) => console.warn('User profile initialization notice:', err));
+
+    const unsubProfile = subscribeUserProfile(user.uid, (p) => {
+      if (p) setUserProfile(p);
+    });
 
     const unsubContacts = subscribeContacts(user.uid, setContacts, (err) =>
       console.warn('Contacts subscription notice:', err)
@@ -93,6 +107,7 @@ export default function App() {
     );
 
     return () => {
+      unsubProfile();
       unsubContacts();
       unsubDrafts();
       unsubTransfers();
@@ -149,6 +164,7 @@ export default function App() {
   const handleLogout = async () => {
     await logout();
     setUser(null);
+    setUserProfile(null);
     setAccessToken(null);
     setActiveTab('transfer');
   };
@@ -175,14 +191,16 @@ export default function App() {
   };
 
   const scheduledCount = transfers.filter((t) => t.status === 'scheduled').length;
+  const assignedUserId = userProfile?.assignedUserId;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-900">
-      {/* Navbar */}
+      {/* Navbar with Assigned User ID Display */}
       <Navbar
         currentTab={activeTab}
         onSelectTab={setActiveTab}
         user={user}
+        assignedUserId={assignedUserId}
         onLogout={handleLogout}
         draftsCount={drafts.length}
         scheduledCount={scheduledCount}
@@ -215,7 +233,7 @@ export default function App() {
                 </h1>
 
                 <p className="text-sm sm:text-base text-slate-600 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                  Sign in or create an account to automate your email attachments. Transfer documents, images, and videos with saved Address Book contacts, scheduled sending, local drafts, and third-party REST API integration.
+                  Sign in or create an account to automate your email attachments. Every account is assigned a unique User ID (UID) with Address Book contacts, scheduled sending, local drafts, and third-party REST API integration.
                 </p>
 
                 {/* Key feature bullets */}
@@ -247,8 +265,8 @@ export default function App() {
                   <div className="flex items-start space-x-2.5 p-3 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
                     <Key className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-slate-900">OAuth 2.0 &amp; API Keys</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">REST endpoints &amp; token exchange for third-party apps</p>
+                      <h4 className="text-xs font-bold text-slate-900">OAuth 2.0 &amp; Unique User IDs</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Assigned User ID for every account &amp; REST API access</p>
                     </div>
                   </div>
                 </div>
@@ -267,9 +285,9 @@ export default function App() {
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900">Secure User Authentication &amp; Storage</h4>
+                  <h4 className="font-bold text-slate-900">Secure User Authentication &amp; Assigned User IDs</h4>
                   <p className="text-slate-500">
-                    Protected by Firebase Authentication and Firestore security rules with user-isolated data storage.
+                    Each registered account receives a unique, verified User ID tracked in Firestore with secure access rules.
                   </p>
                 </div>
               </div>
@@ -285,6 +303,7 @@ export default function App() {
             {activeTab === 'transfer' && (
               <SendTransfer
                 user={user}
+                assignedUserId={assignedUserId}
                 accessToken={accessToken}
                 contacts={contacts}
                 onOpenContacts={() => setActiveTab('contacts')}
@@ -332,6 +351,7 @@ export default function App() {
               <ApiIntegrations
                 userId={user.uid}
                 userEmail={user.email || ''}
+                assignedUserId={assignedUserId}
                 apiKeys={apiKeys}
               />
             )}
@@ -349,7 +369,7 @@ export default function App() {
               Direct Email Dispatch Engine
             </span>
             <span>•</span>
-            <span>OAuth 2.0 &amp; REST Endpoints</span>
+            <span>Unique User IDs Assigned to Every Account</span>
           </div>
         </div>
       </footer>

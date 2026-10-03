@@ -22,12 +22,14 @@ interface ApiIntegrationsProps {
   userId: string;
   userEmail: string;
   apiKeys: ApiKeyRecord[];
+  assignedUserId?: string;
 }
 
 export const ApiIntegrations: React.FC<ApiIntegrationsProps> = ({
   userId,
   userEmail,
   apiKeys,
+  assignedUserId,
 }) => {
   const [keyName, setKeyName] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -197,9 +199,17 @@ export const ApiIntegrations: React.FC<ApiIntegrationsProps> = ({
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center space-x-2 bg-blue-500/20 border border-blue-400/30 px-3 py-1 rounded-full text-xs font-semibold text-blue-300 mb-3">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-            <span>Secure OAuth 2.0 &amp; REST Endpoints</span>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="inline-flex items-center space-x-2 bg-blue-500/20 border border-blue-400/30 px-3 py-1 rounded-full text-xs font-semibold text-blue-300">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span>Secure OAuth 2.0 &amp; REST Endpoints</span>
+            </div>
+            {assignedUserId && (
+              <div className="inline-flex items-center space-x-1.5 bg-slate-800/80 border border-slate-700 px-3 py-1 rounded-full text-xs font-mono font-bold text-slate-300">
+                <span>Account UID:</span>
+                <span className="text-blue-400">{assignedUserId}</span>
+              </div>
+            )}
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Third-Party API &amp; Secret Keys

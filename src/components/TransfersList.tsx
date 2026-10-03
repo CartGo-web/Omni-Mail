@@ -212,6 +212,12 @@ export const TransfersList: React.FC<TransfersListProps> = ({
                       <span>From: {item.senderEmail}</span>
                     </div>
 
+                    {item.assignedUserId && (
+                      <span className="font-mono text-[10px] font-bold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200">
+                        UID: {item.assignedUserId}
+                      </span>
+                    )}
+
                     {item.sendCopyToSelf && (
                       <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
                         Copy sent to self
