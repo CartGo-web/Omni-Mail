@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-deny all access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Contact entity validation
+    function isValidContact(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() > 3 && data.email.size() <= 200 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    // Draft entity validation
+    function isValidDraft(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (!('recipientEmail' in data) || (data.recipientEmail is string && data.recipientEmail.size() <= 200)) &&
+             (!('subject' in data) || (data.subject is string && data.subject.size() <= 300)) &&
+             (!('body' in data) || (data.body is string && data.body.size() <= 10000)) &&
+             (!('sendCopyToSelf' in data) || (data.sendCopyToSelf is bool)) &&
+             (!('attachmentCount' in data) || (data.attachmentCount is number)) &&
+             (!('attachmentSummary' in data) || (data.attachmentSummary is string && data.attachmentSummary.size() <= 500)) &&
+             (!('scheduledAt' in data) || (data.scheduledAt is string && data.scheduledAt.size() <= 50)) &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    // Transfer entity validation
+    function isValidTransfer(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (!('senderEmail' in data) || (data.senderEmail is string && data.senderEmail.size() <= 200)) &&
+             data.recipientEmail is string && data.recipientEmail.size() > 3 && data.recipientEmail.size() <= 200 &&
+             (!('subject' in data) || (data.subject is string && data.subject.size() <= 300)) &&
+             (!('body' in data) || (data.body is string && data.body.size() <= 10000)) &&
+             data.status is string && (data.status == 'scheduled' || data.status == 'sent' || data.status == 'failed' || data.status == 'cancelled') &&
+             (!('fileCount' in data) || (data.fileCount is number)) &&
+             (!('totalSizeBytes' in data) || (data.totalSizeBytes is number)) &&
+             (!('fileNames' in data) || (data.fileNames is string && data.fileNames.size() <= 1000)) &&
+             (!('sendCopyToSelf' in data) || (data.sendCopyToSelf is bool)) &&
+             (!('scheduledFor' in data) || (data.scheduledFor is string && data.scheduledFor.size() <= 50)) &&
+             (!('sentAt' in data) || (data.sentAt is string && data.sentAt.size() <= 50)) &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    // ApiKey entity validation
+    function isValidApiKey(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.apiKey is string && data.apiKey.size() > 0 && data.apiKey.size() <= 100 &&
+             data.apiSecret is string && data.apiSecret.size() > 0 && data.apiSecret.size() <= 100 &&
+             (!('scopes' in data) || (data.scopes is string && data.scopes.size() <= 200)) &&
+             data.status is string && (data.status == 'active' || data.status == 'revoked') &&
+             (!('lastUsedAt' in data) || (data.lastUsedAt is string && data.lastUsedAt.size() <= 50)) &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.updatedAt is string && data.updatedAt.size() <= 50;
+    }
+
+    // 2. Contacts Collection
+    match /contacts/{contactId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(contactId) && incoming().userId == request.auth.uid && isValidContact(incoming());
+      allow update: if isSignedIn() && isValidId(contactId) && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidContact(incoming());
+      allow delete: if isSignedIn() && isValidId(contactId) && existing().userId == request.auth.uid;
+    }
+
+    // 3. Drafts Collection
+    match /drafts/{draftId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(draftId) && incoming().userId == request.auth.uid && isValidDraft(incoming());
+      allow update: if isSignedIn() && isValidId(draftId) && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidDraft(incoming());
+      allow delete: if isSignedIn() && isValidId(draftId) && existing().userId == request.auth.uid;
+    }
+
+    // 4. Transfers Collection
+    match /transfers/{transferId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(transferId) && incoming().userId == request.auth.uid && isValidTransfer(incoming());
+      allow update: if isSignedIn() && isValidId(transferId) && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidTransfer(incoming());
+      allow delete: if isSignedIn() && isValidId(transferId) && existing().userId == request.auth.uid;
+    }
+
+    // 5. ApiKeys Collection
+    match /api_keys/{keyId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(keyId) && incoming().userId == request.auth.uid && isValidApiKey(incoming());
+      allow update: if isSignedIn() && isValidId(keyId) && existing().userId == request.auth.uid && incoming().userId == request.auth.uid && isValidApiKey(incoming());
+      allow delete: if isSignedIn() && isValidId(keyId) && existing().userId == request.auth.uid;
+    }
+
+    // 6. Test connection collection
+    match /test/{docId} {
+      allow read: if true;
+    }
+  }
+}

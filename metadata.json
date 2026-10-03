@@ -1,0 +1,6 @@
+{
+  "name": "OmniMail Transfer & Automation",
+  "description": "Fast email document and media transfer, automated Gmail attachments, address book, drafts, and integration API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

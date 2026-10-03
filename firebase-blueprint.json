@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "Contact": {
+      "title": "Contact",
+      "description": "Address book contact",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "category": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "email", "createdAt", "updatedAt"]
+    },
+    "Draft": {
+      "title": "Draft",
+      "description": "Locally and cloud saved email transfer draft",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "recipientEmail": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 300 },
+        "body": { "type": "string", "maxLength": 10000 },
+        "sendCopyToSelf": { "type": "boolean" },
+        "attachmentCount": { "type": "number" },
+        "attachmentSummary": { "type": "string", "maxLength": 500 },
+        "scheduledAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "createdAt", "updatedAt"]
+    },
+    "Transfer": {
+      "title": "Transfer",
+      "description": "Record of sent or scheduled email file transfer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "senderEmail": { "type": "string", "maxLength": 200 },
+        "recipientEmail": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 300 },
+        "body": { "type": "string", "maxLength": 10000 },
+        "status": { "type": "string", "enum": ["scheduled", "sent", "failed", "cancelled"] },
+        "fileCount": { "type": "number" },
+        "totalSizeBytes": { "type": "number" },
+        "fileNames": { "type": "string", "maxLength": 1000 },
+        "sendCopyToSelf": { "type": "boolean" },
+        "scheduledFor": { "type": "string" },
+        "sentAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "recipientEmail", "status", "createdAt", "updatedAt"]
+    },
+    "ApiKey": {
+      "title": "ApiKey",
+      "description": "API keys and secret tokens for third-party application integration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "apiKey": { "type": "string", "maxLength": 100 },
+        "apiSecret": { "type": "string", "maxLength": 100 },
+        "scopes": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["active", "revoked"] },
+        "lastUsedAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["userId", "name", "apiKey", "apiSecret", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/contacts/{contactId}": {
+      "schema": { "$ref": "#/entities/Contact" },
+      "description": "User saved contacts for quick recipient selection"
+    },
+    "/drafts/{draftId}": {
+      "schema": { "$ref": "#/entities/Draft" },
+      "description": "User drafts for automated email transfers"
+    },
+    "/transfers/{transferId}": {
+      "schema": { "$ref": "#/entities/Transfer" },
+      "description": "Transfer records and scheduled transfer queues"
+    },
+    "/api_keys/{keyId}": {
+      "schema": { "$ref": "#/entities/ApiKey" },
+      "description": "Third party application integration keys"
+    }
+  }
+}
